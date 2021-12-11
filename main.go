@@ -6,7 +6,6 @@ import (
 	"fmt"
 	_ "github.com/lib/pq"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 )
@@ -15,14 +14,22 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintln(w, "URL:", r.URL.String())
 }
 func loginPage(w http.ResponseWriter, r*http.Request) {
-	expiration:= time.Now().Add(10*time.Hour)
-	cookie:=http.Cookie{
-		Name: "session_id",
-		Value: "MMRN9FDZx02MMgVo",
-		Expires: expiration,
-		HttpOnly: true,
+
+	//log.Println(string(body))
+	var users user_data
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		panic(err)
 	}
-	http.SetCookie(w,&cookie)
+	err = json.Unmarshal(body, &users)
+	//expiration:= time.Now().Add(10*time.Hour)
+	//cookie:=http.Cookie{
+	//	Name: "session_id",
+	//	Value: "MMRN9FDZx02MMgVo",
+	//	Expires: expiration,
+	//	HttpOnly: true,
+	//}
+	//http.SetCookie(w,&cookie)
 	//http.Redirect(w,r, "/",http.StatusFound)
 	w.Write([]byte {'h','e','l'})
 }
@@ -40,60 +47,99 @@ func logoutPage(w http.ResponseWriter, r *http.Request) {
 	//http.Redirect(w, r, "/", http.StatusFound)
 }
 type user_data struct {
-	id int;
-	login string
-	password int
+	Id    string    `json:"id"`
+	Login string `json:"login"`
+	Password string `json:"password"`
 }
 
 const (
 	host = "localhost"
 	port = 5432
 	user = "postgres"
-	password = "12345"
-	dbname = "user_data"
+	pass = "12345"
+	dbname = "postgres"
 )
-func reqistration(w http.ResponseWriter,r*http.Request){
+func reqistration(w http.ResponseWriter,r*http.Request) {
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		panic(err)
 	}
-	log.Println(string(body))
-	var t user_data
-	err = json.Unmarshal(body, &t)
+	var users user_data
+	err = json.Unmarshal(body, &users)
+	check_put:=put_database(&users)
+	if (!check_put){
+		w.WriteHeader(http.StatusNotFound)
+	}
+	w.WriteHeader(http.StatusOK)
+
 	if err != nil {
 		panic(err)
 	}
-	log.Println(t)
 }
 
+func put_database(data *user_data) bool {
 
-func main() {
-	psqlconn:= fmt.Sprintf("host=%s port=%d user= %s password=%s dbname=%s sslmode=disable",host,port,user,password,dbname)
+	psqlconn:= fmt.Sprintf("host=%s port=%d user= %s password=%s dbname=%s sslmode=disable",host,port,user,pass,dbname)
 
 	db, err := sql.Open("postgres",psqlconn )
+
 	err = db.Ping()
 	if err != nil {
 		panic(err)
 	}
 	defer db.Close()
+	//var users user_data
 
 	_, err = db.Exec(`
 	insert into user_data (
-	                      id,
-	                      login,
-	                      password
-	                      )
+	                     id,
+	                     login,
+	                     password
+	                     )
 	values ($1,$2,$3)`,
-	"2",
-	"test_log",
-	"test_pass",)
+		data.Id,
+		data.Login,
+		data.Password,
+	)
 	if err!=nil{
-		log.Panic(err)
+		return false
 	}
+	return true
+
+}
+
+//func search_in_database(data *user_data){
+//	psqlconn:= fmt.Sprintf("host=%s port=%d user= %s password=%s dbname=%s sslmode=disable",host,port,user,pass,dbname)
+//
+//	db, err := sql.Open("postgres",psqlconn )
+//
+//	err = db.Ping()
+//	if err != nil {
+//		panic(err)
+//	}
+//	rows, err = db.Query(`SELECT "id","login","password" FROM "user_data"`)
+//	if err!=nil{
+//		panic(err)
+//	}
+//	defer rows.Close()
+//	for rows.Next(){
+//
+//		rows.Scan(&id,&login,&password)
+//
+//	}
+//
+//
+//
+//
+//}
+
+
+func main() {
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/", handler)
 	mux.HandleFunc("/login",loginPage)
-	mux.HandleFunc("/logout",logoutPage)
+	mux.HandleFunc("/logout",logoutPage) //  потом
 	mux.HandleFunc("/register",reqistration) // get json
 
 	server := http.Server{
