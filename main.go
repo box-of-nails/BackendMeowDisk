@@ -2,157 +2,48 @@ package main
 
 import (
 	"database/sql"
-	"encoding/json"
 	"fmt"
+	"github.com/box-of-nails/BackendMeowDisk/models"
+	"github.com/box-of-nails/BackendMeowDisk/user/handlers"
+	"github.com/labstack/echo"
 	_ "github.com/lib/pq"
-	"io/ioutil"
-	"net/http"
-	"time"
+	_ "net/http"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
-	fmt.Fprintln(w, "URL:", r.URL.String())
-}
-func loginPage(w http.ResponseWriter, r*http.Request) {
-
-	var users user_data
-	body, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		panic(err)
-	}
-	err = json.Unmarshal(body, &users)
-	checkPut :=search_in_database(&users)
-	if (!checkPut){
-		w.WriteHeader(http.StatusUnauthorized)
-	}
-	if(checkPut){
-		w.WriteHeader(http.StatusOK)
-	}
-	//cookie:=http.Cookie{
-	//	Name: "session_id",
-	//	Value: "MMRN9FDZx02MMgVo",
-	//	Expires: expiration,
-	//	HttpOnly: true,
-	//}
-	//http.SetCookie(w,&cookie)
-	//http.Redirect(w,r, "/",http.StatusFound)
-	//w.Write([]byte {'h','e','l'})
-}
-
-func logoutPage(w http.ResponseWriter, r *http.Request) {
-	session, err := r.Cookie("session_id")
-	if err == http.ErrNoCookie {
-		http.Redirect(w, r, "/", http.StatusFound)
-		return
-	}
-	session.Expires = time.Now().AddDate(0, 0, -1)
-	http.SetCookie(w, session)
-
-	//http.Redirect(w, r, "/", http.StatusFound)
-}
-
-type user_data struct {
-	Id    string    `json:"id"`
-	Login string `json:"login"`
-	Password string `json:"password"`
-}
-
 const (
-	host = "localhost"
-	port = 5432
-	user = "postgres"
-	pass = "12345"
+	host   = "localhost"
+	port   = 5432
+	user   = "postgres"
+	pass   = "12345"
 	dbname = "postgres"
 )
 
-func reqistration(w http.ResponseWriter,r*http.Request) {
-	body, err := ioutil.ReadAll(r.Body)
+func InitPostgresql(server *echo.Echo) *sql.DB {
+	psqlConn := fmt.Sprintf("host=%s port=%d user= %s password=%s dbname=%s sslmode=disable", host, port, user, pass, dbname)
+
+	db, err := sql.Open("postgres", psqlConn)
 	if err != nil {
-		panic(err)
+		server.Logger.Fatal("failed to connect to postgresql", err.Error())
 	}
-	var users user_data
-	err = json.Unmarshal(body, &users)
-	check_put:=put_database(&users)
-	if (!check_put){
-		w.WriteHeader(http.StatusInternalServerError)
-	}
-	if(check_put) {
-		w.WriteHeader(http.StatusOK)
-	}
-	if err != nil {
-		panic(err)
-	}
+	return db
 }
 
-func put_database(data *user_data) bool {
-
-	psqlconn:= fmt.Sprintf("host=%s port=%d user= %s password=%s dbname=%s sslmode=disable",host,port,user,pass,dbname)
-	db, err := sql.Open("postgres",psqlconn )
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
-	defer db.Close()
-	_, err = db.Exec(`
-	insert into user_data (
-	                     id,
-	                     login,
-	                     password
-	                     )
-	values ($1,$2,$3)`,
-		data.Id,
-		data.Login,
-		data.Password,
-	)
-	if err!=nil{
-		return false
-	}
-	return true
+func NewHandlers(db *sql.DB) models.Handlers {
+	userHandlers := handlers.NewUserHandlers(db)
+	return models.Handlers{UserHandlers: userHandlers}
 }
-
-func search_in_database(data *user_data) bool{
-	psqlconn:= fmt.Sprintf("host=%s port=%d user= %s password=%s dbname=%s sslmode=disable",host,port,user,pass,dbname)
-
-	db, err := sql.Open("postgres",psqlconn )
-
-	err = db.Ping()
-	if err != nil {
-		panic(err)
-	}
-	rows, err:= db.Query(`SELECT "id","login","password" FROM "user_data"`)
-	if err!=nil{
-		panic(err)
-	}
-	var id,login,password string
-	defer rows.Close()
-	for rows.Next(){
-		err:=rows.Scan(&id,&login,&password)
-	if err!=nil{
-		panic(err)
-	}
-	if (id == data.Id && login == data.Login && password == data.Password){
-		return true
-	}
-	}
-	return false
-}
-
 
 func main() {
-
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", handler)
-	mux.HandleFunc("/login",loginPage)
-	mux.HandleFunc("/logout",logoutPage) //  потом
-	mux.HandleFunc("/register",reqistration) // get json
-
-	server := http.Server{
-		Addr:         ":8080",
-		Handler:      mux,
-		ReadTimeout:  10 * time.Second,
-		WriteTimeout: 10 * time.Second,
-	}
+	server := echo.New()
+	db := InitPostgresql(server)
+	defer func() {
+		if db != nil {
+			db.Close()
+		}
+	}()
+	api := NewHandlers(db)
+	api.UserHandlers.InitHandlers(server)
+	server.Logger.Fatal(server.Start(":8080"))
 
 	fmt.Println("starting server at :8080")
-	server.ListenAndServe()
 }
