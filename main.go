@@ -3,8 +3,8 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"github.com/box-of-nails/BackendMeowDisk/models"
 	"github.com/box-of-nails/BackendMeowDisk/user/handlers"
+	"github.com/go-redis/redis"
 	"github.com/labstack/echo"
 	_ "github.com/lib/pq"
 	_ "net/http"
@@ -18,6 +18,10 @@ const (
 	dbname = "postgres"
 )
 
+type Handlers struct {
+	UserHandlers handlers.UserHandlers
+}
+
 func InitPostgresql(server *echo.Echo) *sql.DB {
 	psqlConn := fmt.Sprintf("host=%s port=%d user= %s password=%s dbname=%s sslmode=disable", host, port, user, pass, dbname)
 
@@ -28,9 +32,17 @@ func InitPostgresql(server *echo.Echo) *sql.DB {
 	return db
 }
 
-func NewHandlers(db *sql.DB) models.Handlers {
-	userHandlers := handlers.NewUserHandlers(db)
-	return models.Handlers{UserHandlers: userHandlers}
+func InitRedis() *redis.Client {
+	client := redis.NewClient(&redis.Options{
+		Addr: "localhost:6379",
+	})
+
+	return client
+}
+
+func NewHandlers(db *sql.DB, redis *redis.Client) Handlers {
+	userHandlers := handlers.NewUserHandlers(db, redis)
+	return Handlers{UserHandlers: userHandlers}
 }
 
 func main() {
@@ -41,7 +53,8 @@ func main() {
 			db.Close()
 		}
 	}()
-	api := NewHandlers(db)
+	redis := InitRedis()
+	api := NewHandlers(db, redis)
 	api.UserHandlers.InitHandlers(server)
 	server.Logger.Fatal(server.Start(":8080"))
 

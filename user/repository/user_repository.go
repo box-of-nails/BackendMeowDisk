@@ -4,17 +4,48 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/box-of-nails/BackendMeowDisk/models"
+	"github.com/go-redis/redis"
+	"log"
+	"net/http"
+	"time"
 )
 
 type UserRepository struct {
-	db *sql.DB
+	db    *sql.DB
+	redis *redis.Client
 }
 
-func NewUserRepository(database *sql.DB) UserRepository {
-	return UserRepository{db: database}
+func NewUserRepository(database *sql.DB, redis *redis.Client) UserRepository {
+	return UserRepository{db: database, redis: redis}
 }
 
-func(userRepo UserRepository) Register(data models.UserData) error{
+func (userRepo UserRepository) SetCoockieinredis(cookie http.Cookie, data models.UserData) error {
+	err := userRepo.redis.Set(data.Id, cookie.Value, cookie.Expires.Sub(time.Now())).Err()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (userRepo UserRepository) Deletecoockieinredis(data models.UserData) error {
+	err := userRepo.redis.Del(data.Id).Err()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (userRepo UserRepository) GetCoockieinredis(data models.UserData) string {
+	coockieVal, err := userRepo.redis.Get(data.Id).Result()
+	if err != nil {
+		log.Fatalf("Value not found")
+	}
+
+	return coockieVal
+}
+
+func (userRepo UserRepository) Register(data models.UserData) error {
 	_, err := userRepo.db.Exec(`
 	insert into user_data (
 	                     id,
@@ -32,7 +63,7 @@ func(userRepo UserRepository) Register(data models.UserData) error{
 	return nil
 }
 
-func(userRepo UserRepository) Login (data models.UserData) error {
+func (userRepo UserRepository) Login(data models.UserData) error {
 	rows, err := userRepo.db.Query(`SELECT "id","login","password" FROM "user_data"`)
 	if err != nil {
 		panic(err)
@@ -49,4 +80,8 @@ func(userRepo UserRepository) Login (data models.UserData) error {
 		}
 	}
 	return errors.New("incorrect login or password; or account does not exist")
+}
+
+func (userRepo UserRepository) Logout(models.UserData) error {
+	return nil
 }
