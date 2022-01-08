@@ -7,6 +7,7 @@ import (
 	"github.com/go-redis/redis"
 	"log"
 	"net/http"
+	"time"
 )
 
 type UserRepository struct {
@@ -19,11 +20,19 @@ func NewUserRepository(database *sql.DB, redis *redis.Client) UserRepository {
 }
 
 func (userRepo UserRepository) SetCoockieinredis(cookie http.Cookie, data models.UserData) error {
-	err := userRepo.redis.Set(data.Id, cookie.Name, 0).Err()
+	err := userRepo.redis.Set(data.Id, cookie.Value, cookie.Expires.Sub(time.Now())).Err()
 	if err != nil {
 		return err
 	}
 
+	return nil
+}
+
+func (userRepo UserRepository) Deletecoockieinredis(data models.UserData) error {
+	err := userRepo.redis.Del(data.Id).Err()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -71,4 +80,8 @@ func (userRepo UserRepository) Login(data models.UserData) error {
 		}
 	}
 	return errors.New("incorrect login or password; or account does not exist")
+}
+
+func (userRepo UserRepository) Logout(models.UserData) error {
+	return nil
 }

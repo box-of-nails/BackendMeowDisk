@@ -17,19 +17,26 @@ func NewUserUseCase(db *sql.DB, redis *redis.Client) UserUseCase {
 	return UserUseCase{UserRepository: userRepository}
 }
 
-func (userUcase UserUseCase) Register(users models.UserData) error {
-	return userUcase.UserRepository.Register(users)
+func (userUcase UserUseCase) SetCoockieinredis(coockie http.Cookie, user models.UserData) error {
+	return userUcase.UserRepository.SetCoockieinredis(coockie, user)
 }
 
-func (userUcase UserUseCase) SetCoockieinredis(http.Cookie, models.UserData) error {
-	return userUcase.UserRepository.SetCoockieinredis(http.Cookie{}, models.UserData{})
+func (userUcase UserUseCase) GetCoockieinredis(user models.UserData) string {
+	return userUcase.UserRepository.GetCoockieinredis(user)
 }
 
-func (userUcase UserUseCase) GetCoockieinredis(data models.UserData) string {
-	return userUcase.UserRepository.GetCoockieinredis(models.UserData{})
-
+func (userUcase UserUseCase) Deletecoockieinredis(user models.UserData) error {
+	return userUcase.UserRepository.Deletecoockieinredis(user)
 }
 
 func (userUcase UserUseCase) Login(users models.UserData) error {
 	return userUcase.UserRepository.Login(users)
+}
+
+func (userUcase UserUseCase) Logout(users models.UserData) error {
+	return userUcase.UserRepository.Logout(users)
+}
+
+func (userUcase UserUseCase) Register(users models.UserData) error {
+	return userUcase.UserRepository.Register(users)
 }
