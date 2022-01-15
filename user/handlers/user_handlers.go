@@ -7,8 +7,8 @@ import (
 	"github.com/box-of-nails/BackendMeowDisk/models"
 	"github.com/box-of-nails/BackendMeowDisk/user/usecase"
 	"github.com/go-redis/redis"
+	"github.com/google/uuid"
 	"github.com/labstack/echo"
-	"github.com/satori/go.uuid"
 	"io/ioutil"
 	"net/http"
 	"time"
@@ -41,7 +41,7 @@ func (userH UserHandlers) Register(ctx echo.Context) error {
 	}
 	cookie := http.Cookie{
 		Name:     "session_id",
-		Value:    uuid.NewV4().String(),
+		Value:    uuid.New().String(),
 		Expires:  time.Now().AddDate(0, 0, 7),
 		HttpOnly: true,
 	}
@@ -70,7 +70,7 @@ func (userH UserHandlers) Login(ctx echo.Context) error {
 	}
 	cookie := http.Cookie{
 		Name:     "session_id",
-		Value:    uuid.NewV4().String(),
+		Value:    uuid.New().String(),
 		Expires:  time.Now().AddDate(0, 0, 7),
 		HttpOnly: true,
 	}

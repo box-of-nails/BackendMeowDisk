@@ -37,6 +37,7 @@ func (userRepo UserRepository) Deletecoockieinredis(data models.UserData) error 
 }
 
 func (userRepo UserRepository) GetCoockieinredis(data models.UserData) string {
+
 	coockieVal, err := userRepo.redis.Get(data.Id).Result()
 	if err != nil {
 		log.Fatalf("Value not found")
