@@ -53,8 +53,8 @@ func main() {
 			db.Close()
 		}
 	}()
-	redis := InitRedis()
-	api := NewHandlers(db, redis)
+	initRedis := InitRedis()
+	api := NewHandlers(db, initRedis)
 	api.UserHandlers.InitHandlers(server)
 	server.Logger.Fatal(server.Start(":8080"))
 

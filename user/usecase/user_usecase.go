@@ -3,6 +3,7 @@ package usecase
 import (
 	"database/sql"
 	"github.com/box-of-nails/BackendMeowDisk/models"
+	_ "github.com/box-of-nails/BackendMeowDisk/models"
 	"github.com/box-of-nails/BackendMeowDisk/user/repository"
 	"github.com/go-redis/redis"
 	"net/http"
